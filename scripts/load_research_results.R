@@ -1,0 +1,98 @@
+################################################################################
+## Loading and Cleaning RFC1 research results
+################################################################################
+
+##############################
+# Load libraries
+##############################
+
+library(tidyverse)
+library(readxl)
+
+setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
+
+##############################
+# Load research results
+##############################
+
+research_results <- read_excel(path = "data/RFC1 summary_AC Dec2021.xlsx",
+                               sheet = "RFC1 all tested") %>%
+  janitor::clean_names() %>%
+  mutate(forename_surname = paste0(forename," ",surname),
+         name_string = toupper(forename_surname))
+
+##############################
+# Select UK results
+##############################
+
+non_uk_centres <- c("Paris", "Israel", "Genova", "Torino", "Sydney", "Berciano", "Waldemann",
+                    "Tubingen", "Pavia", "Padova", "Swisse", "Napoli", "Auckland City Hospital",
+                    "Hospital Roger Salengro", "Finland", "Halle", "University Hospital Zurich",
+                    "Adelaide Meath Hospital", "Toronto Western Hospital", "Helsinki", "Australia",
+                    "Brazil", "Istanbul", "Greek", "France", "Portugal", "Pisa", "Barcelona",
+                    "Kuantan Malaysia", "Italy, Genova", "Italy")
+
+##############################
+# Standardise results
+##############################
+
+
+flanking_noamp_variants <- c("No PCR product", "no PCR product", "no PCR products", "no bands",
+                             "no PCR products (checked twice)", "no pCR products", "Negative", "no product")
+
+flanking_amp_variants <- c("reference", "Intermediate", "Intermediate - faint", "intermediate",
+                           "2 bands", "reference (rechecked, first time no PCR products)",
+                           "reference (faint band)", "reference (re-checked)", "Positive",
+                           "product")
+
+aaggg_positive_variants <- c("positive", "pos", "Positive")
+
+aaggg_negative_variants <- c("negative", "neg", "Negative")
+
+##############################
+# Clean research results
+##############################
+
+cleaned_results <- research_results %>%
+  
+  # Remove duplicates
+  filter(!base::duplicated(name_string)) %>%
+  
+  # Remove "patient names" containing numbers
+  filter(!name_string %in% grep("1|2|3|4|5|6|7|8|9|0", 
+                                research_results$name_string, value = TRUE)) %>%
+  
+  filter(!centre %in% non_uk_centres) %>%
+  
+  mutate(
+    flanking_clean = case_when(
+      flanking_pcr %in% flanking_noamp_variants ~"no amplification",
+      flanking_pcr %in% flanking_amp_variants ~"amplification",
+      TRUE ~"other"),
+    
+    aaggg_clean = case_when(
+      aaggg %in% aaggg_positive_variants ~"positive",
+      aaggg %in% aaggg_negative_variants ~"negative",
+      TRUE ~"other"),
+    
+    result_clean = case_when(
+      flanking_clean == "no amplification" & aaggg_clean == "positive" ~"biallelic AAGGG repeat expansion detected",
+      flanking_clean == "amplification" & aaggg_clean == "negative" ~"biallelic AAGGG repeat expansion not detected",
+      TRUE ~"other"),
+    
+    external_id_new = case_when(
+      is.na(external_id) ~ " ",
+      TRUE ~external_id),
+    
+    internal_id_new = case_when(
+      is.na(internal_id) ~ " ",
+      TRUE ~internal_id),
+    
+    hospital_no_new = case_when(
+      is.na(hospital_no) ~ " ",
+      TRUE ~hospital_no),
+    
+    identifiers = paste(external_id_new, internal_id_new, hospital_no_new, sep = " ")
+    )
+
+##############################

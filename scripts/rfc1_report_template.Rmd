@@ -1,0 +1,35 @@
+---
+title: "Research Testing Report: RFC1"
+author: "Cortese Group, Institute of Neurology, Queen Square"
+date: "04/03/2022"
+output:
+  pdf_document: default
+  word_document: default
+params:
+  patient_name: "PATIENT NAME"
+  identifiers: "NHS number"
+  clinician: "DOCTOR NAME"
+  result: "biallelic AAGGG repeat expansion detected"
+  show_code: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Patient: __`r params$patient_name`__
+
+Other identifiers:  __`r params$identifiers`__
+
+Referring clinician: __`r params$clinician`__
+
+
+
+Referral: research testing for pentanucleotide expansions in the *RFC1* gene.
+
+Research result: __`r params$result`__
+
+
+
+
+Disclaimer: THIS IS A RESEARCH RESULT. Testing was performed in a research laboratory without diagnostic accreditation. This report has been automatically generated. 

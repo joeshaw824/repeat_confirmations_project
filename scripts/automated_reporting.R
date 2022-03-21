@@ -16,6 +16,9 @@ source("scripts/load_research_results.R")
 
 generate_report <- function(name_input) {
   
+  stopifnot(c("name_string", "identifiers", "consultant",
+              "result_clean") %in% colnames(cleaned_results))
+  
   # Isolate patient details
   patient_details <- cleaned_results %>%
     dplyr::filter(name_string == name_input)

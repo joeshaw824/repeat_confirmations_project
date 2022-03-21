@@ -8,6 +8,8 @@
 
 library(tidyverse)
 library(readxl)
+library(janitor)
+library(ggplot2)
 
 setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
 
@@ -15,27 +17,12 @@ setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational 
 # Load research results
 ##############################
 
-research_results <- read_excel(path = "data/RFC1 summary_AC Dec2021.xlsx",
-                               sheet = "RFC1 all tested") %>%
-  janitor::clean_names() %>%
-  mutate(forename_surname = paste0(forename," ",surname),
-         name_string = toupper(forename_surname))
-
-##############################
-# Select UK results
-##############################
-
-non_uk_centres <- c("Paris", "Israel", "Genova", "Torino", "Sydney", "Berciano", "Waldemann",
-                    "Tubingen", "Pavia", "Padova", "Swisse", "Napoli", "Auckland City Hospital",
-                    "Hospital Roger Salengro", "Finland", "Halle", "University Hospital Zurich",
-                    "Adelaide Meath Hospital", "Toronto Western Hospital", "Helsinki", "Australia",
-                    "Brazil", "Istanbul", "Greek", "France", "Portugal", "Pisa", "Barcelona",
-                    "Kuantan Malaysia", "Italy, Genova", "Italy")
+research_results <- read_excel(path = "data/AC_CANVAS_Screeninglist_2021_GOSH.xlsx") %>%
+  janitor::clean_names()
 
 ##############################
 # Standardise results
 ##############################
-
 
 flanking_noamp_variants <- c("No PCR product", "no PCR product", "no PCR products", "no bands",
                              "no PCR products (checked twice)", "no pCR products", "Negative", "no product")
@@ -61,8 +48,6 @@ cleaned_results <- research_results %>%
   # Remove "patient names" containing numbers
   filter(!name_string %in% grep("1|2|3|4|5|6|7|8|9|0", 
                                 research_results$name_string, value = TRUE)) %>%
-  
-  filter(!centre %in% non_uk_centres) %>%
   
   mutate(
     flanking_clean = case_when(
@@ -96,3 +81,21 @@ cleaned_results <- research_results %>%
     )
 
 ##############################
+# Southern blotting alleles
+##############################
+
+patient_alleles <- cleaned_results %>%
+  select(name_string, large, small) %>%
+  pivot_longer(
+    cols = c("large", "small"),
+    names_to = "allele",
+    values_to = "size") %>%
+  filter(!is.na(size))
+
+ggplot(patient_alleles, aes(x = reorder(name_string, size), y = size)) +
+  geom_point() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(y = "Allele pentanucleotide repeats", x = "Sample", 
+       title = "Southern blotting allele sizes for RFC1")
+

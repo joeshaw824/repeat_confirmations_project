@@ -1,5 +1,7 @@
 ################################################################################
 ## Automated reporting of RFC1 research results
+## Joseph.Shaw@gosh.nhs.uk
+## March 2022
 ################################################################################
 
 ##############################
@@ -7,20 +9,47 @@
 ##############################
 
 library(rmarkdown)
+library(tidyverse)
+library(readxl)
+library(janitor)
 
-source("scripts/load_research_results.R")
+setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
 
 ##############################
-# Automated reporting
+# User input
+##############################
+
+results_file <- "AC_CANVAS_Screeninglist_2021_GOSH"
+positive_text <- "RFC1 CANVAS Spectrum Disorder confirmed"
+negative_text <- "RFC1 CANVAS Spectrum Disorder NOT confirmed"
+result_texts <- c(positive_text, negative_text)
+
+##############################
+# Load research results
+##############################
+
+research_results <- read_excel(path = paste0("data/",results_file,".xlsx")) %>%
+  janitor::clean_names() %>%
+  mutate(
+    name_string = toupper(paste0(first_name," ",surname)),
+    result = case_when(
+        interpretation_2 == "positive" ~positive_text,
+        interpretation_2 == "negative" ~negative_text,
+        TRUE ~"other")) %>%
+  filter(!base::duplicated(name_string) &
+           result %in% result_texts)
+
+##############################
+# Automated reporting function
 ##############################
 
 generate_report <- function(name_input) {
   
-  stopifnot(c("name_string", "identifiers", "consultant",
-              "result_clean") %in% colnames(cleaned_results))
+  stopifnot(c("name_string", "consultant",
+              "result") %in% colnames(research_results))
   
   # Isolate patient details
-  patient_details <- cleaned_results %>%
+  patient_details <- research_results %>%
     dplyr::filter(name_string == name_input)
 
   stopifnot(nrow(patient_details) == 1)
@@ -28,26 +57,23 @@ generate_report <- function(name_input) {
   # Patient details for report
   patient_name  <- as.character(patient_details$name_string)
   
-  identifiers   <- as.character(patient_details$identifiers)
-  
   clinician     <- as.character(patient_details$consultant)
   
-  result        <- as.character(patient_details$result_clean)
+  result        <- as.character(patient_details$result)
   
-  file_name     <- paste0(patient_name, "  RFC1 research report")
+  file_name     <- paste0(patient_name, " RFC1 research report ", 
+                          format(Sys.time(), '%d_%m_%Y'))
 
-  stopifnot(result %in% c("biallelic AAGGG repeat expansion detected",
-                          "biallelic AAGGG repeat expansion not detected"))
+  stopifnot(result %in% c(positive_text, negative_text))
 
   # Automation Code
   rmarkdown::render(
     input         = "scripts/rfc1_report_template.Rmd",
-    output_format = "word_document",
     output_file   = file_name,
     output_dir    = "automated_reports/",
+    output_format = "word_document",
     params        = list(
       patient_name = patient_name,
-      identifiers = identifiers,
       clinician = clinician,
       result = result,
       show_code      = FALSE)
@@ -56,14 +82,9 @@ generate_report <- function(name_input) {
 }
 
 ##############################
-# Testing the reporting
+# Generating reports
 ##############################
 
-test_patients <- c("21RG-228G0027", "20RG-252G0140", "21RG-236G0106", "21RG-222G0087")
-
-test_results <- cleaned_results %>%
-  filter(internal_id %in% test_patients)
-
-lapply(test_results$name_string, generate_report)
+lapply(research_results$name_string, generate_report)
 
 ##############################

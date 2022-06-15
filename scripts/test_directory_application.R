@@ -245,9 +245,18 @@ requests_and_results <-  left_join(x = rfc1_requests, y = research_results,
   select(dna_number, episode_number, full_name, flanking_pcr, aaggg, aaagg, aaaag,
          sb_result, interpretation, notes)
 
-# Samples without results
+# How many samples have had RFC1 testing requested? 533
+length(unique(rfc1_requests$full_name))
 
-nrow(requests_and_results %>%
-       filter(is.na(flanking_pcr)))
+# How many samples have been requested and have results? 209
+length(intersect(rfc1_requests$full_name, research_results$full_name))
+
+# How many samples have been requested but don't have results? 325
+length(setdiff(rfc1_requests$full_name, research_results$full_name)) 
+
+samples_without_results <- setdiff(rfc1_requests$full_name, research_results$full_name)
+
+outstanding_sample_info <- rfc1_requests %>%
+  filter(full_name %in% samples_without_results)
 
 ##############################

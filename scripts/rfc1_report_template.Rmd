@@ -3,12 +3,12 @@ title: "Research Testing Report: RFC1"
 author: "Cortese Group, UCL Queen Square Institute of Neurology, Queen Square, London, WC1N 3BG"
 date: "Report date: `r format(Sys.time(), '%d/%m/%Y')`"
 output: 
-  pdf_document: default
   word_document: default
+  pdf_document: default
 params:
   patient_name: "PATIENT NAME"
   clinician: "DOCTOR NAME"
-  result: "biallelic AAGGG repeat expansion detected"
+  result: "RFC1 CANVAS Spectrum Disorder confirmed, or RFC1 CANVAS Spectrum Disorder NOT confirmed"
   show_code: no
 ---
 

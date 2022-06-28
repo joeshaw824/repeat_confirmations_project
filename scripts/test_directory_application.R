@@ -230,22 +230,34 @@ rfc1_requests <- rbind(
     full_name = paste(forename, surname, sep = " ")) %>%
   filter(!base::duplicated(full_name))
 
-# Results provided by Cortese group
+# All results provided by Cortese group (sent by Sara Nagy in March 2022)
 research_results <- read_excel(path = "data/RFC1 summary_AC Dec2021.xlsx",
                                sheet = "RFC1 all tested") %>%
   janitor::clean_names() %>%
   mutate(full_name = paste(toupper(forename), toupper(surname), sep = " ")) %>%
   filter(!base::duplicated(full_name))
 
-# Check if results are available for the requested samples
+# Results spreadsheet for automated reporting
+automatic_reports <- read_excel( path = "data/AC_CANVAS_Screeninglist_2021_GOSH.xlsx") %>%
+  janitor::clean_names() %>%
+  mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " ")) %>%
+  filter(!base::duplicated(full_name))
 
+# Which samples aren't on both spreadsheets?
+setdiff(automatic_reports$full_name, research_results$full_name)
+
+# Check if results are available for the requested samples
 requests_and_results <-  left_join(x = rfc1_requests, y = research_results, 
             by = "full_name",
             na_matches = "never") %>%
   select(dna_number, episode_number, full_name, flanking_pcr, aaggg, aaagg, aaaag,
          sb_result, interpretation, notes)
 
-# How many samples have had RFC1 testing requested? 533
+##############################
+# Testing numbers
+##############################
+
+# How many samples have had RFC1 testing requested? 534
 length(unique(rfc1_requests$full_name))
 
 # How many samples have been requested and have results? 209
@@ -253,6 +265,25 @@ length(intersect(rfc1_requests$full_name, research_results$full_name))
 
 # How many samples have been requested but don't have results? 325
 length(setdiff(rfc1_requests$full_name, research_results$full_name)) 
+
+# How many additional samples are on Epic since I ran the RFC1 MyReport?
+# 77 
+
+# What is the total number of samples with RFC1 testing requested without results?
+325+77
+# 402
+
+# How many samples were requested from Winpath? 267
+nrow(rbind(winpath1, winpath2, winpath3, winpath4))
+
+# How many samples were requested from Epic? 391
+nrow(epic_referrals)
+
+# How many samples were requested based on paper forms stored in the prep lab?
+171
+
+# There are 261 results in the spreadsheet provided by Andrea which was then used for
+# automatic generation of reports
 
 samples_without_results <- setdiff(rfc1_requests$full_name, research_results$full_name)
 

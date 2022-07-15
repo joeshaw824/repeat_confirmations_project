@@ -1,5 +1,6 @@
 ################################################################################
 ## Unexplained Cases
+## Selecting samples for optical genome mapping with Bionano technology
 ################################################################################
 
 ##############################
@@ -57,10 +58,21 @@ filtered_cases <- goshg2p_cases %>%
             hgvs_nomenclature, protein_change, classification,
             chrom, start, end, gosh_id, ref, alt, total_alt,
             PanelID, Pipeline_Run_ID)) %>%
-  filter(!Sample_name %in% c(diag_confirmed, snvs_same_gene, dom_inheritance))
+  filter(!Sample_name %in% c(diag_confirmed, snvs_same_gene, dom_inheritance)) %>%
+  filter(reported == 1)
+
+colnames(filtered_cases)
 
 # How many patients
 length(unique(filtered_cases$Sample_name))
+
+candidate_genes <- (filtered_cases$gene)
+
+write.csv(candidate_genes, "candidate_genes.csv", row.names = FALSE)
+
+paste0(unique(filtered_cases$gene), collapse = " OR ")
+
+length(unique(filtered_cases$gene))
 
 ##############################
 # Potential cases
@@ -104,3 +116,5 @@ length(unique(filtered_cases$Sample_name))
 "21RG-258G0022"
 "21RG-277G0023"
 "22RG-044G0092"
+
+##############################

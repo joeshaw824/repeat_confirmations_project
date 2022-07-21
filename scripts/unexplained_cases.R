@@ -61,18 +61,11 @@ filtered_cases <- goshg2p_cases %>%
   filter(!Sample_name %in% c(diag_confirmed, snvs_same_gene, dom_inheritance)) %>%
   filter(reported == 1)
 
-colnames(filtered_cases)
-
-# How many patients
+# How many patients?
 length(unique(filtered_cases$Sample_name))
 
-candidate_genes <- (filtered_cases$gene)
-
-write.csv(candidate_genes, "candidate_genes.csv", row.names = FALSE)
-
+# For Google search term
 paste0(unique(filtered_cases$gene), collapse = " OR ")
-
-length(unique(filtered_cases$gene))
 
 ##############################
 # Potential cases

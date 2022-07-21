@@ -33,7 +33,7 @@ automatic_reports <- read_excel( path = "data/AC_CANVAS_Screeninglist_2021_GOSH.
 ##############################
 
 # Identify samples from previous runs
-previous_worksheets <- c("22-2268", "22-2325")
+previous_worksheets <- c("22-2268", "22-2325", "22-2543")
 
 samples_tested_already <- rfc1_db %>%
   filter(worksheet %in% previous_worksheets)
@@ -54,7 +54,7 @@ samples_with_locations <- automatic_reports %>%
 samples_to_test <- dplyr::slice_sample(samples_with_locations, n = 40) %>%
   select(-full_name)
 
-write.csv(samples_to_test, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2543/22_2543_samples.csv",
+write.csv(samples_to_test, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2649/22_2649_samples.csv",
           row.names = FALSE)
 
 ##############################

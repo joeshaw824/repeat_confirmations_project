@@ -13,30 +13,28 @@ library(lubridate)
 
 setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
 
+source("scripts/rfc1_database.R")
+
 ##############################
 # Read in worksheets
 ##############################
 
-ws_22_2268 <- readxl::read_excel("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2268/22-2268.xlsx",
-                                 sheet = "results_sheet",
-                                 skip = 2) %>%
-  janitor::clean_names() %>%
-  select(sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
-         allele_2, size_2, height_2, result, report_type, coded_result)
+read_rfc1_ws <- function(worksheet_number) {
+  
+  output <- readxl::read_excel(paste0("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/", 
+  worksheet_number, "/", worksheet_number, ".xlsx"),
+                     sheet = "results_sheet",
+                     skip = 2) %>%
+    janitor::clean_names() %>%
+    select(sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
+           allele_2, size_2, height_2, result, report_type, coded_result)
+}
 
-ws_22_2325 <- readxl::read_excel("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2325/22-2325.xlsx",
-                                 sheet = "results_sheet",
-                                 skip = 2) %>%
-  janitor::clean_names() %>%
-  select(sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
-         allele_2, size_2, height_2, result, report_type, coded_result)
+ws_22_2268 <- read_rfc1_ws("22-2268")
 
-ws_22_2543 <- readxl::read_excel("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2543/22-2543.xlsx",
-                                 sheet = "results_sheet",
-                                 skip = 2) %>%
-  janitor::clean_names() %>%
-  select(sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
-         allele_2, size_2, height_2, result, report_type, coded_result)
+ws_22_2325 <- read_rfc1_ws("22-2325")
+
+ws_22_2543 <- read_rfc1_ws("22-2543")
 
 collated_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543) %>%
   filter(!is.na(report_type)) %>%
@@ -53,7 +51,9 @@ automatic_reports <- read_excel( path = "data/AC_CANVAS_Screeninglist_2021_GOSH.
 
 result_comparison <- collated_results %>%
   left_join(automatic_reports, by = "full_name") %>%
-  select(full_name, report_type, interpretation, interpretation_2)
+  select(full_name, result, coded_result, report_type, interpretation, interpretation_2, flanking, aaaag, aaagg,
+         aaggg) %>%
+  filter(report_type == "Consistent with RFC1 disorder")
 
 ##############################
 # Plotting RFC1 amplicon sizes

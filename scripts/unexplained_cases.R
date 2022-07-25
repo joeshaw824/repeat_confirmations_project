@@ -55,6 +55,11 @@ filtered_cases <- goshg2p_cases %>%
             chrom, start, end, gosh_id, ref, alt, total_alt,
             panel_id, pipeline_run_id))
 
+# Initial patients
+length(unique(goshg2p_cases$sample_name))
+# Initial variants
+nrow(goshg2p_cases)
+
 ##############################
 # Cases to exclude from manual inspection on Epic
 ##############################
@@ -82,7 +87,8 @@ dom_inheritance <- c("21RG-117G0050", "19RG-357G0098")
 potential_bionano_cases <- filtered_cases %>%
   filter(!sample_name %in% c(diag_confirmed, snvs_same_gene, dom_inheritance)) %>%
   # Remove duplicate calls of the same variant for the same sample due to multiple pipeline runs
-  filter(!(base::duplicated(sample_name) & base::duplicated(acmg_cdna))) %>%
+  mutate(sample_variant = paste0(sample_name, "_", acmg_cdna)) %>%
+  filter(!base::duplicated(sample_variant)) %>%
   # Add identifiers
   left_join(case_info, by = "sample_name") %>%
   filter(!is.na(patient_surname)) %>%
@@ -91,12 +97,11 @@ potential_bionano_cases <- filtered_cases %>%
 
 # How many patients?
 length(unique(potential_bionano_cases$sample_name))
+# How many variants?
+nrow(potential_bionano_cases)
 
 write.csv(potential_bionano_cases, 
           paste0("outputs/potential_cases_for_bionano_", format(Sys.time(), "%Y%m%d"), ".csv"),
           row.names= FALSE)
 
 ##############################
-
-
-

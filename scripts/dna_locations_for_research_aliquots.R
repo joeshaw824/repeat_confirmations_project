@@ -19,6 +19,9 @@ library(janitor)
 
 setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
 
+# To run this script in the command line, use this command:
+# C:\Users\ShawJ3\Documents\R\R-4.1.2\bin\Rscript.exe "W:\MolecularGenetics\Neurogenetics\Research\Joe Shaw Translational Post 2022\RFC1 R code\RFC1_analysis\scripts\dna_locations_for_research_aliquots.R"
+
 ##############################
 # Getting information out of Epic
 ##############################
@@ -54,18 +57,60 @@ dna_locations_mod <- dna_locations %>%
   filter(!base::duplicated(specimen_id) &
            # Ensure only regional genetics (RG) samples included
            substr(dna_locations$specimen_id, 3, 4) == "RG")
-
+  
 ##############################
 # Select samples for Mark
 ##############################
 
+basic_cols <- c("research_number", "specimen_id")
+
 sample_request <- read_excel("resources/mark_gaskin_sample_location_request.xlsx")
 
+# Catch incorrect input format
+stopifnot(basic_cols %in% colnames(sample_request))
+
+# Catch empty inputs
+stopifnot(nrow(sample_request) >=1)
+
 sample_request_with_locations <- sample_request %>%
-  left_join(dna_locations_mod, by = "specimen_id")
+  left_join(dna_locations_mod, by = "specimen_id") %>%
+  mutate(
+    # Remove line breaks
+    location_stripped = gsub("[\r\n]", "", storage_location),
+    
+    # Get tray coordinate
+    tray = sub(pattern = ".*?RG DNA Tray\\s(.*?)\\sslot.*", 
+               replacement = "\\1", 
+               x = location_stripped,
+               # ignore.case required as locations can have "Tray" or "tray"
+               ignore.case = TRUE),
+    
+    # Get y coordinate
+    ycoord = sub(pattern = ".*?RG DNA Tray\\s\\d{3}\\sslot\\s(.*?)-.", 
+                 replacement = "\\1", 
+                 x = location_stripped,
+                 ignore.case = TRUE),
+    
+    # Get x coordinate
+    xcoord = sub(pattern = ".*?RG DNA Tray\\s\\d{3}\\sslot\\s\\d{1,2}-(.*?)", 
+                 replacement = "\\1", 
+                 x = location_stripped,
+                 ignore.case = TRUE),
+    
+    study = "",
+    freezer = "RG DNA Tray") %>%
+  # Format for Mark's pull sheet
+  select(research_number, specimen_id, study, ycoord, xcoord, tray, freezer, storage_location)
+
+# Regex notes:
+# \\s = space
+# \\d = digits
+# \\d{3} = 3 digits
+# \\d{1,2} = at least 1 digit and at most 2 digits
+# () = grouping, i.e. select this group
 
 write.csv(x = sample_request_with_locations, 
-          file = paste0("outputs/mark_gaskin_samples_with_locations_", format(Sys.time(), "%Y%m%d"), ".csv"),
+          file = paste0("outputs/mark_gaskin_samples_with_locations_", format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
           row.names = FALSE)
 
 ##############################

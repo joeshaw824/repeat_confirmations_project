@@ -122,14 +122,16 @@ large_alleles <- nrow(flanking %>%
                         filter(size_bp > 400))
 
 (large_alleles / num_alleles) * 100
-# 38% of alleles are greater than 400bp
+# 50% of alleles are greater than 400bp (~21 pentanucleotide repeats)
+# (400-293) / 5 = 21.4 repeats
 
 flanking_amplicon_abi_plot <- ggplot(flanking, aes(x = size_bp)) +
   geom_bar(stat = "bin", binwidth = 5) +
   labs(x = "", y = "Frequency",
        title = "RFC1 flanking PCR amplicon sizes- ABI-3730") +
   theme_bw() +
-  xlim(250, 2100)
+  xlim(250, 2100) +
+  geom_vline(xintercept = 860, linetype = "dashed")
 
 gel_sizes <- read_excel("data/rfc1_flanking_pcr_gel_sizes.xlsx",
                         col_types = c("text", "text", "text", "numeric", "numeric"))
@@ -145,7 +147,8 @@ flanking_amplicon_gel_plot <- gel_sizes %>%
   theme_bw() +
   xlim(250, 2100) +
   labs(x = "Flanking PCR amplion (bp)", y = "Frequency",
-       title = "RFC1 flanking PCR amplicon sizes - agarose gel")
+       title = "RFC1 flanking PCR amplicon sizes - agarose gel") +
+  geom_vline(xintercept = 860, linetype = "dashed")
 
 sizes_plot <- ggpubr::ggarrange(flanking_amplicon_abi_plot,
                   flanking_amplicon_gel_plot,

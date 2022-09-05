@@ -19,13 +19,10 @@ setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational 
 # "CANVAS Referrals with Clinicians" Epic MyReport
 # Extracts all samples with an RFC1 test set added
 
-rfc1_epic_requests <- read_excel(path = "data/CANVAS_Referrals_with_Clinicians_20220831_1507.xlsx") %>%
+rfc1_epic_requests <- read_excel(path = "data/Checking_CANVAS_referrals_20220902.xlsx",
+                                 sheet = "epic_output") %>%
   janitor::clean_names() %>%
   dplyr::rename(specimen_id = test_specimen_id)
-
-# Roy's spreadsheet of sample details he sent to Andrea
-sent_samples <- read_excel("W:/MolecularGenetics/Neurogenetics/Research/CANVAS/Canvas list sent to Andrea/Combined_Beaker-EPIC_CANVAS_list_sent.xlsx") %>%
-  janitor::clean_names()
 
 ##############################
 # Which samples have had DNA sent to the Cortese group?
@@ -36,13 +33,10 @@ sent_samples <- read_excel("W:/MolecularGenetics/Neurogenetics/Research/CANVAS/C
 # These samples were aliquotted by the GOSH prep lab team and sent to the Cortese group.
 prep_lab_samples <- read_excel("data/samples_requested_by_cortese_group.xlsx",
                                sheet = "aliquots") %>%
-  dplyr::rename(specimen_id = episode)
-
-aliquotted_prep_lab_samples <- prep_lab_samples %>%
-  # Remove samples where no sample was sent
-  filter(volume_ul != 0) %>%
+  dplyr::rename(specimen_id = episode) %>%
+  mutate(aliquotted_by = "GOSH Prep Lab") %>%
   left_join(rfc1_epic_requests %>%
-              select(specimen_id, pt_first_nm, patient_surname, dob),
+              select(specimen_id, mrn),
             by = "specimen_id")
 
 # This is Mark Gaskin's pull sheet for DNA samples that he aliquotted on 11/08/2022
@@ -52,54 +46,82 @@ gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research
   janitor::clean_names() %>%
   select(-c("x13", "x14", "x15")) %>%
   filter(!is.na(original_sample_id)) %>%
-  rename(specimen_id = original_sample_id)
-
-aliquotted_gaskin_samples <- gaskin_samples %>%
-  # Remove samples which were "missing" or "empty"
-  filter(sample_status == "Present") %>%
+  rename(specimen_id = original_sample_id,
+         volume_ul = amount_taken_ul) %>%
+  mutate(date_aliquotted = as.Date("2022-08-11 UTC"),
+         aliquotted_by = "Mark Gaskin") %>%
   left_join(rfc1_epic_requests %>%
-              select(specimen_id, pt_first_nm, patient_surname, dob),
-            by = "specimen_id")
+              select(specimen_id, pt_first_nm, patient_surname, dob, mrn),
+            by = "specimen_id") %>%
+  mutate(patient_name = paste0(pt_first_nm, " ", patient_surname))
 
-all_aliquotted_samples
 
-colnames(prep_lab_samples)
-
-gaskin_samples 
-
-date_aliquotted == "2022-08-11"
+# Join dataframes together to give a summary table of all aliquotting since
+# April 2021
+all_aliquots <- rbind(gaskin_samples %>%
+                        select(specimen_id, patient_name, dob, mrn, 
+                               date_aliquotted, aliquotted_by, volume_ul),
+                      prep_lab_samples %>%
+                        select(specimen_id, patient_name, dob, mrn, 
+                               date_aliquotted, aliquotted_by, volume_ul))
 
 ##############################
-# Which samples haven't been aliquotted?
+# 02/09/2022 - Manually checking for missed samples
 ##############################
 
-aliquotted_samples <- c(aliquotted_gaskin_samples$specimen_id, aliquotted_prep_lab_samples$specimen_id)
+# I manually checked through all the RFC1 requests from Epic to find any that had not been aliquotted
+# either by the GOSH prep lab or by Mark Gaskin.
+# I chose this method because there can be multiple episode numbers for the same patient, only one
+# of which may have the RFC1 test set added.
 
-not_aliquotted <- setdiff(rfc1_epic_requests$specimen_id, aliquotted_samples)
+##############################
+# How many samples are from the same patient?
+##############################
 
-not_aliquotted_details <- rfc1_epic_requests %>%
-  filter(specimen_id %in% not_aliquotted) %>%
-  select(-c("submitter_ordering_dept", "external_requisition_comment", "storage_location",
-            "final_dna_conc_ng_ml", "batch"))
+duplicated_requests <- rfc1_epic_requests %>%
+  filter(duplicated(mrn, fromLast = FALSE) |
+           duplicated(mrn, fromLast = TRUE)) %>%
+  arrange(mrn) %>%
+  select(specimen_id, pt_first_nm, patient_surname, dob, mrn, collection_instant)
 
-`aliquotted_details <- rfc1_epic_requests %>%
-  filter(!test_specimen_id %in% not_aliquotted) %>%
-  select(-c("submitter_ordering_dept", "external_requisition_comment", "storage_location",
-            "final_dna_conc_ng_ml", "batch"))
+# Number of patients with duplicated samples
+length(unique(duplicated_requests$mrn))
 
-not_on_sent_spreadsheet <- setdiff(rfc1_epic_requests$test_specimen_id, sent_samples$specimen_id)
+##############################
+# Which samples need to be aliquotted?
+##############################
 
-not_on_spreadsheet_samples <- rfc1_epic_requests %>%
-  filter(test_specimen_id %in% not_on_sent_spreadsheet) %>%
-  select(-c("submitter_ordering_dept", "external_requisition_comment", "storage_location",
-            "final_dna_conc_ng_ml", "batch"))
+checked_epic_samples <- read_excel(path = "data/Checking_CANVAS_referrals_20220902.xlsx",
+                                 sheet = "epic_output_annotated") %>%
+  janitor::clean_names() %>%
+  dplyr::rename(specimen_id = test_specimen_id)
 
-july_referrals <- grep("2022-07", rfc1_epic_requests$collection_instant, value = TRUE)
+additional_samples <- read_excel(path = "data/Checking_CANVAS_referrals_20220902.xlsx",
+                                 sheet = "additional_samples") %>%
+  janitor::clean_names() %>%
+  filter(notes != "Doesn't appear to be for CANVAS") %>%
+  mutate(storage_location = "-80 freezers in basement") %>%
+  dplyr::rename(specimen_id = sample)
 
-august_referrals <- grep("2022-08", rfc1_epic_requests$collection_instant, value = TRUE)
+epic_samples_to_aliquot <- checked_epic_samples %>%
+  filter(dna_required == "Yes" | is.na(dna_required))
 
-to_check <- not_aliquotted_details %>% 
-  filter(substr(collection_instant, 1, 7) != "2022-07" &
-           substr(collection_instant, 1, 7) != "2022-08")
+extra_samples <- data.frame(
+  specimen_id = c("21RG-304G0081", "21RG-294G0055"),
+  storage_location = c("RG DNA Tray 233 slot 19-E", "RG DNA Tray 230 slot 21-F"))
+
+samples_for_aliqotting <- additional_samples %>%
+  select(specimen_id, storage_location) %>%
+  rbind(extra_samples) %>%
+  rbind(epic_samples_to_aliquot %>%
+          select(specimen_id, storage_location)) %>%
+  # "Empty" on Mark's list, other sample is 21RG-304G0081
+  filter(specimen_id != "21RG-070G0100") %>%
+  # Blood sample with no location, DNA for this patient is 21RG-294G0055
+  filter(specimen_id != "21RG-294G0054")
+
+write.csv(x = samples_for_aliqotting, 
+          file = paste0("outputs/rfc1_samples_for_aliqotting_patient_identifiers_removed_", format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
+          row.names = FALSE)
 
 ##############################

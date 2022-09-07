@@ -45,11 +45,9 @@ longer_results <- rbind(allele_1_results, allele_2_results)
 
 longer_results %>%
   ggplot(aes(x = pcr_allele_size, y = eh_allele)) +
-  geom_point() +
+  geom_point(alpha = 0.5) +
   geom_errorbar(aes(ymin = eh_min_ci, ymax = eh_max_ci)) +
   geom_abline(linetype="dashed") +
-  ylim(0, 50) +
-  xlim(0, 50) +
   facet_wrap(~repeat_id)
 
 ##############################

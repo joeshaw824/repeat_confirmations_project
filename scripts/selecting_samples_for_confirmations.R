@@ -26,7 +26,8 @@ rfc1_epic_export <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
 
 # Updated spreadsheet from Riccardo Curro
 updated_research_results <- read_excel(path = "data/CANVAS_Screeninglist_update_Aug2022_GOSH.xlsx") %>%
-  janitor::clean_names()
+  janitor::clean_names() %>%
+  mutate(full_name = paste0(first_name, " ", surname))
 
 ##############################
 # Samples with a positive research result
@@ -68,5 +69,22 @@ samples_for_confirmation <- positives_for_confirmation %>%
 
 write.csv(samples_for_confirmation, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-3206/22_3206_samples.csv",
           row.names = FALSE)
+
+##############################
+# Checking research results
+##############################
+
+# Cases where duplicate samples tested
+duplicate_tests <- updated_research_results %>%
+  filter(duplicated(full_name, fromLast = FALSE) | duplicated(full_name, fromLast = TRUE)) %>%
+  arrange(full_name)
+
+# Cases with no PCR products on flanking PCR
+
+no_product <- c("no PCR products", "no PCR product", "no PCR products (checked twice)", "No PCR products",
+                "No PCR product", "no product", "no pcr product", "no pcr prod",
+                "no PCR product (empty?)", "no pcr Product" )
+
+# Did they retest the discordant sample?
 
 ##############################

@@ -24,6 +24,10 @@ rfc1_epic_export <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
   janitor::clean_names() %>%
   mutate(full_name = paste(toupper(pt_first_nm), toupper(patient_surname), sep = " ")) 
 
+winpath_rfc1_referrals <- read_csv("outputs/winpath_rfc1_referrals.csv") %>%
+  janitor::clean_names() %>%
+  mutate(full_name = paste0(forename, " ", surname))
+
 # Updated spreadsheet from Riccardo Curro
 updated_research_results <- read_excel(path = "data/CANVAS_Screeninglist_update_Aug2022_GOSH.xlsx") %>%
   janitor::clean_names() %>%
@@ -57,17 +61,12 @@ samples_tested_already <- rfc1_db %>%
 # We only want to test samples with research results that we haven't already tested
 samples_for_confirmation <- positives_for_confirmation %>%
   left_join(rfc1_epic_export, by = "full_name") %>%
-  select(test_specimen_id, pt_first_nm, patient_surname, full_name,
-         storage_location, final_dna_conc_ng_ml, interpretation) %>%
-  filter(!is.na(test_specimen_id) &
-           # Check that the patient name hasn't been tested before (the same patient
-           # may have multiple sample numbers)
-           !full_name %in% samples_tested_already$full_name) %>%
-  # Remove duplicates
-  filter(!base::duplicated(full_name)) %>%
-  select(-full_name)
+  left_join(winpath_rfc1_referrals, by = "full_name") %>%
+  select(test_specimen_id, dna_number, full_name, dob.x, dob.y,
+         storage_location, interpretation) %>%
+  mutate(already_tested = ifelse(full_name %in% samples_tested_already$full_name, "Yes", "No"))
 
-write.csv(samples_for_confirmation, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-3206/22_3206_samples.csv",
+write.csv(samples_for_confirmation, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-3206/samples_for_confirmation.csv",
           row.names = FALSE)
 
 ##############################

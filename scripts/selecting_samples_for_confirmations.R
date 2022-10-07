@@ -46,14 +46,14 @@ positives_for_confirmation <- updated_research_results %>%
   mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " "))
 
 # 112 positive results.
-# We have had 29 positive results so far.
+# We have had 54 positive results so far.
 
 ##############################
 # Samples already tested
 ##############################
 
 # Identify samples from previous runs
-previous_worksheets <- c("22-2268", "22-2325", "22-2543", "22-2649")
+previous_worksheets <- c("22-2268", "22-2325", "22-2543", "22-2649", "22-3206")
 
 samples_tested_already <- rfc1_db %>%
   filter(worksheet %in% previous_worksheets)
@@ -66,7 +66,7 @@ samples_for_confirmation <- positives_for_confirmation %>%
          storage_location, interpretation) %>%
   mutate(already_tested = ifelse(full_name %in% samples_tested_already$full_name, "Yes", "No"))
 
-write.csv(samples_for_confirmation, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-3206/samples_for_confirmation.csv",
+write.csv(samples_for_confirmation, "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-3382/samples_for_confirmation.csv",
           row.names = FALSE)
 
 ##############################

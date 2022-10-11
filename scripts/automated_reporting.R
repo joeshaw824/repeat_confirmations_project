@@ -1,7 +1,6 @@
 ################################################################################
 ## Automated reporting of RFC1 research results
 ## Joseph.Shaw@gosh.nhs.uk
-## March 2022
 ################################################################################
 
 ##############################
@@ -19,7 +18,7 @@ setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational 
 # User input
 ##############################
 
-results_file <- "AC_CANVAS_Screeninglist_2021_GOSH"
+results_file <- "CANVAS_Screeninglist_update_Aug2022_GOSH"
 positive_text <- "RFC1 CANVAS Spectrum Disorder confirmed"
 negative_text <- "RFC1 CANVAS Spectrum Disorder NOT confirmed"
 result_texts <- c(positive_text, negative_text)
@@ -28,14 +27,24 @@ result_texts <- c(positive_text, negative_text)
 # Load research results
 ##############################
 
+# Additional formatting steps required for new results Excel.
+
+negative_strings <- c("negative", "carrier")
+
+positive_strings <-c("biallelic RFC1 expansion", "likely biallelic RFC1 expansion",
+                     "likely biallelic RFC1 expansion (rechecked by Joe)",
+                     "confirmed",
+                     "already confirmed",
+                     "patient already confirmed")
+
 research_results <- read_excel(path = paste0("data/",results_file,".xlsx")) %>%
   janitor::clean_names() %>%
   mutate(
     name_string = toupper(paste0(first_name," ",surname)),
     result = case_when(
-        interpretation_2 == "positive" ~positive_text,
-        interpretation_2 == "negative" ~negative_text,
-        TRUE ~"other")) %>%
+      interpretation %in% positive_strings ~positive_text,
+      interpretation %in% negative_strings ~negative_text,
+      TRUE ~"other")) %>%
   filter(!base::duplicated(name_string) &
            result %in% result_texts)
 

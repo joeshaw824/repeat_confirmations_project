@@ -14,22 +14,11 @@ library(ggpubr)
 
 setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
 
-#source("scripts/rfc1_database.R")
+source("functions/rfc1_functions.R")
 
 ##############################
-# Read in worksheets
+# Read and collate worksheets
 ##############################
-
-read_rfc1_ws <- function(worksheet_number) {
-  
-  output <- readxl::read_excel(paste0("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/", 
-  worksheet_number, "/", worksheet_number, ".xlsx"),
-                     sheet = "results_sheet",
-                     skip = 2) %>%
-    janitor::clean_names() %>%
-    select(sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
-           allele_2, size_2, height_2, result, report_type, coded_result)
-}
 
 ws_22_2268 <- read_rfc1_ws("22-2268")
 
@@ -39,25 +28,84 @@ ws_22_2543 <- read_rfc1_ws("22-2543")
 
 ws_22_2649 <- read_rfc1_ws("22-2649")
 
-collated_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543, ws_22_2649) %>%
-  filter(!is.na(report_type)) %>%
+ws_22_3206 <- read_rfc1_ws("22-3206")
+
+ws_22_3382 <- read_rfc1_ws("22-3382")
+
+collated_diagnostic_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543, 
+                          ws_22_2649, ws_22_3206, ws_22_3382) %>%
+  filter(!report_type %in% c(NA, "Water control") ) %>%
   mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " "))
 
+positive_diagnostic_results <- collated_diagnostic_results %>%
+  filter(coded_result %in% c("AAGGG expansion presumed homozygous", "Other")  &
+           !base::duplicated(dna_no))
+
 ##############################
-# Positive results for sequencing
+# Total tested and positives
 ##############################
 
-positive_results <- collated_results %>%
-  filter(coded_result == "AAGGG expansion presumed homozygous" &
-           !base::duplicated(dna_no)) %>%
-  select(dna_no, first_name, surname)
+# Total number of DNA samples tested
+length(unique(collated_diagnostic_results$dna_no))
 
-write.csv(positive_results, 
-          "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/22-2998/positive_results.csv",
-          row.names = FALSE)
-        
+# Total with a positive or unusual result
+length(unique(positive_diagnostic_results$dna_no))
+
 ##############################
-# Comparing results with research results
+# How many do we still need to confirm?
+##############################
+
+# Updated spreadsheet from Riccardo Curro
+updated_research_results <- read_excel(path = "data/CANVAS_Screeninglist_update_Aug2022_GOSH.xlsx") %>%
+  janitor::clean_names() %>%
+  mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " "))
+
+positives <- c("biallelic RFC1 expansion", "likely biallelic RFC1 expansion", 
+               "likely biallelic RFC1 expansion (rechecked by Joe)", "confirmed",
+               "already confirmed", "patient already confirmed")
+
+positive_research_results <- updated_research_results %>%
+  filter(interpretation %in% positives) %>%
+  select(full_name, interpretation, consultant)
+
+length(unique(positive_research_results$full_name))
+
+# Read in Epic information for DNA locations
+rfc1_epic_export <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
+                               sheet = "epic_output") %>%
+  janitor::clean_names() %>%
+  mutate(full_name = paste(toupper(pt_first_nm), toupper(patient_surname), sep = " ")) 
+
+# Collated winpath referrals
+winpath_rfc1_referrals <- read_csv("outputs/winpath_rfc1_referrals.csv") %>%
+  janitor::clean_names() %>%
+  mutate(full_name = paste0(forename, " ", surname))
+
+# Check which samples have already been confirmed
+to_manally_check <- split_dna_location(positive_research_results %>%
+  # Add on DNA locations
+  left_join(rfc1_epic_export %>%
+              select(full_name, storage_location, 
+                     test_specimen_id, dob), by = "full_name") %>%
+  left_join(collated_diagnostic_results, by = "full_name")) %>%
+  arrange(tray) %>%
+  filter(!base::duplicated(full_name))%>%
+  filter(is.na(coded_result)) %>%
+  # Add Winpath DNA numbers
+  left_join(winpath_rfc1_referrals %>%
+              select(dna_number, full_name), by = "full_name") %>%
+  mutate(query_already_tested = "",
+         worksheet_if_tested = "",
+         dna_volume = "",
+         query_other_sample_available = "",
+         other_sample_id = "") %>%
+  select(full_name, dob, test_specimen_id, dna_number, tray, ycoord, xcoord, query_already_tested,
+         worksheet_if_tested, dna_volume, query_other_sample_available, other_sample_id)
+
+write.csv(to_manally_check, "outputs/manually_checking_dnas.csv", row.names = FALSE)
+
+##############################
+# Comparing results with research results - out of date
 ##############################
 
 automatic_reports <- read_excel( path = "data/AC_CANVAS_Screeninglist_2021_GOSH.xlsx") %>%
@@ -66,7 +114,8 @@ automatic_reports <- read_excel( path = "data/AC_CANVAS_Screeninglist_2021_GOSH.
   filter(!base::duplicated(full_name))
 
 control_results <- data.frame(
-  full_name = c("ALISON CLARKE", "GERALDINE JONES", "IRMA BALDENWEG"),
+  # Removed patient names as these should not go on Github.
+  full_name = c(),
   interpretation_2 = c("positive", "carrier", "negative"))
 
 result_comparison1 <- collated_results %>%
@@ -92,15 +141,6 @@ result_comparison <- rbind(result_comparison1, result_comparison2) %>%
 result_table <- result_comparison %>%
   group_by(category) %>%
   summarise(total = n())
-
-##############################
-# Uncertainty of measurement
-##############################
-
-collated_results %>%
-  filter(dna_no == "109437")
-
-
 
 ##############################
 # Plotting RFC1 amplicon sizes

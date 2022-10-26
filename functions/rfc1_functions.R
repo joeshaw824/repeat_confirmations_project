@@ -7,6 +7,14 @@
 ##############################
 
 # Useful function for splitting DNA storage location string used in Epic
+
+# Regex notes:
+# \\s = space
+# \\d = digits
+# \\d{3} = 3 digits
+# \\d{1,2} = at least 1 digit and at most 2 digits
+# () = grouping, i.e. select this group
+
 split_dna_location <- function(input_df) {
     
   stopifnot("storage_location" %in% colnames(input_df))

@@ -80,7 +80,15 @@ stopifnot(nrow(sample_request) >=1)
 
 sample_request_with_locations <- split_dna_location(sample_request %>%
   # Find Mark's samples
-  left_join(dna_locations_mod, by = "specimen_id"))
+  left_join(dna_locations_mod, by = "specimen_id")) %>%
+  mutate(grid_1 = "",
+         grid_2 = "",
+         alt_id = "",
+         alt_id2 = "",
+         study = "") %>%
+  # Format for Mark's pull sheet (based on T1635 format)
+  select(research_number, grid_1, grid_2, specimen_id, alt_id, alt_id2, study,
+         ycoord, xcoord, tray)
 
 write.csv(x = sample_request_with_locations, 
           file = paste0("outputs/mark_gaskin_samples_with_locations_", 

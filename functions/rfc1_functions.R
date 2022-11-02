@@ -80,3 +80,21 @@ get_ws_sample_info <- function(worksheet_number) {
 }
 
 ##############################
+# Pullsheet functions
+##############################
+
+read_pullsheet <- function(pullsheet) {
+  
+  pull_sheet_filepath <- "W:/MolecularGenetics/Neurogenetics/Research/DNA_aliquots_for_research/Pull sheets/"
+  
+  output <- read_excel(paste0(pull_sheet_filepath, pullsheet),
+                       skip = 2) %>%
+    janitor::clean_names() %>%
+    mutate(sheet = pullsheet) %>%
+    select(sheet, original_sample_id, amount_taken_ul) %>%
+    filter(!is.na(original_sample_id))
+  
+  return(output)
+}
+
+##############################

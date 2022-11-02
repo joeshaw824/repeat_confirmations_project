@@ -25,7 +25,7 @@ rfc1_epic_requests <- read_excel(path = "data/Checking_CANVAS_referrals_20220902
   dplyr::rename(specimen_id = test_specimen_id)
 
 ##############################
-# Which samples have had DNA sent to the Cortese group?
+# Samples sent to the Cortese group by the GOSH prep lab
 ##############################
 
 # This is an Excel that I manually typed out from the paper forms in the prep lab research
@@ -38,6 +38,10 @@ prep_lab_samples <- read_excel("data/samples_requested_by_cortese_group.xlsx",
   left_join(rfc1_epic_requests %>%
               select(specimen_id, mrn),
             by = "specimen_id")
+
+##############################
+# Samples aliquotted by Mark Gaskin
+##############################
 
 # This is Mark Gaskin's pull sheet for DNA samples that he aliquotted on 11/08/2022
 gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/DNA_aliquots_for_research/T1611-Pull sheet.xlsx",

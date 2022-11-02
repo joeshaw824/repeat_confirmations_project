@@ -1,5 +1,5 @@
 ################################################################################
-## RFC1 DNA Aliquoting by Mark Gaskin
+## DNA Aliquoting by Mark Gaskin
 ################################################################################
 
 ##############################
@@ -10,43 +10,27 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 
-setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/DNA_aliquots_for_research")
+setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis/")
+
+source("functions/rfc1_functions.R")
 
 ##############################
 # Load pullsheets
 ##############################
 
-T1611 <- read_excel(path = "T1611-Pull sheet.xlsx",
-                             sheet = "Pull sheet",
-                             skip = 2) %>%
-  janitor::clean_names() %>%
-  filter(!is.na(original_sample_id)) %>%
-  mutate(epic_comment = paste0(amount_taken_ul, "ul aliquotted for Dr Andrea Cortese at the Institute of Neurology by Mark Gaskin on 11/08/2022 (batch T1611)"))
+all_pullsheets <- list.files("W:/MolecularGenetics/Neurogenetics/Research/DNA_aliquots_for_research/Pull sheets/")
 
-T1630 <- read_excel(path = "T1630-Pull sheet.xlsx",
-                    sheet = "Pull sheet",
-                    skip = 2) %>%
-  janitor::clean_names() %>%
-  filter(!is.na(original_sample_id)) %>%
-  mutate(epic_comment = paste0(amount_taken_ul, "ul aliquotted for Dr Pietro Fratta at the Institute of Neurology by Mark Gaskin on 25/08/2022 (batch T1630)"))
+pullsheet_merge <- data.frame()
 
-##############################
-# Add comments
-##############################
-
-epic_comments_for_update <- T1630 %>%
-  select(original_sample_id, epic_comment) %>%
-  rbind(T1611 %>%
-          select(original_sample_id, epic_comment)) %>%
-  filter(grepl("RG", original_sample_id)) %>%
-  arrange(original_sample_id)
-
-##############################
-# Export
-##############################
-
-write.csv(epic_comments_for_update,
-          file = "epic_comments_for_update.csv",
-          row.names = FALSE)
+for (pullsheet in all_pullsheets) {
+  
+  tmp_sheet <- read_pullsheet(pullsheet)
+  
+  pullsheet_merge <- rbind(pullsheet_merge, tmp_sheet)
+  
+  rm(tmp_sheet)
+  return(pullsheet_merge)
+  
+}
 
 ##############################

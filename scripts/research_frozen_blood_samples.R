@@ -13,11 +13,37 @@ library(lubridate)
 
 ##############################
 
-setwd("I:/Genetics/DNA Lab/Prep Lab/Research samples from NHNN")
+bioresource_2020_files <- list.files("Bioresources/2020")
 
-bioresource_files <- c(list.files("Bioresources/2020"), list.files("Bioresources/2021"), list.files("Bioresources/2022"))
+read_bioresource <- function(file, year) {
+  
+  stopifnot(typeof(file) == "character")
+  
+  stopifnot(typeof(year) == "double")
+  
+  stopifnot(year %in% c(2020, 2021, 2022))
+  
+  bioresource_excel <- read_excel(paste0("I:/Genetics/DNA Lab/Prep Lab/Research samples from NHNN/Bioresources/", year, "/", file),
+                          sheet = "Bioresource") %>%
+    janitor::clean_names()
+  
+  return(bioresource_excel)
+  
+}
 
-read_excel("Bioresources/2020/Bioresources List 1- August 2020_Collected by MG on 23.10.2020.xlsx",
-           sheet = "Bioresource")
+bioresource_collated <- data.frame()
+
+for (file in bioresource_2020_files) {
+  
+  temp_file <- read_bioresource(file, 2020)
+  
+  bioresource_collated <- rbind(bioresource_collated, temp_file)
+  
+  rm(temp_file)
+  
+  return(bioresource_collated)
+  
+}
+
 
 ##############################

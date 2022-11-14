@@ -221,7 +221,7 @@ result_table <- result_comparison %>%
 # Plotting RFC1 amplicon sizes - out of date
 ##############################
 
-flanking <- collated_results %>%
+flanking <- collated_diagnostic_results %>%
   # Need to filter repeated samples
   filter(marker == "RFC1_FL") %>%
   select(dna_no, size_1, size_2) %>%
@@ -242,11 +242,28 @@ large_alleles <- nrow(flanking %>%
 
 flanking_amplicon_abi_plot <- ggplot(flanking, aes(x = size_bp)) +
   geom_bar(stat = "bin", binwidth = 5) +
-  labs(x = "", y = "Frequency",
+  labs(x = "Size (bp)", y = "Frequency (number of amplicons)",
        title = "RFC1 flanking PCR amplicon sizes- ABI-3730") +
   theme_bw() +
-  xlim(250, 2100) +
-  geom_vline(xintercept = 860, linetype = "dashed")
+  theme(panel.grid = element_blank()) +
+  xlim(250, 900) +
+  geom_vline(xintercept = 400, linetype = "dashed") +
+  annotate(geom = "text", label  = "65% of sized alleles are over 400bp (~21 repeats)",
+           x = 650, y = 30)
+
+ggsave(plot = flanking_amplicon_abi_plot, 
+       filename = paste0(format(Sys.time(), "%Y%m%d_%H%M%S"),
+                         "_",
+                         "flanking_amplicons",
+                         ".jpeg"),
+       path = "plots/", 
+       device='jpeg', 
+       dpi=600,
+       units = "cm",
+       width = 15,
+       height = 15)
+
+
 
 gel_sizes <- read_excel("data/rfc1_flanking_pcr_gel_sizes.xlsx",
                         col_types = c("text", "text", "text", "numeric", "numeric"))

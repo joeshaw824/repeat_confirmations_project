@@ -218,38 +218,42 @@ result_table <- result_comparison %>%
   summarise(total = n())
 
 ##############################
-# Plotting RFC1 amplicon sizes - out of date
+# Plotting RFC1 amplicon sizes
 ##############################
 
 flanking <- collated_diagnostic_results %>%
-  # Need to filter repeated samples
-  filter(marker == "RFC1_FL") %>%
-  select(dna_no, size_1, size_2) %>%
-  pivot_longer(cols = -dna_no,
+  # Don't include runs which were full of expansion confirmations
+  filter(worksheet %in% c("22-2268", "22-2325", "22-2543", "22-2649") &
+           marker == "RFC1_FL") %>%
+  select(dna_no, size_1, size_2, allele_1, allele_2) %>%
+  pivot_longer(cols = -c(dna_no,allele_1, allele_2),
                names_to = "allele",
                values_to = "size_bp") %>%
   mutate(allele_size = round(size_bp, 0)) %>%
-  filter(!is.na(allele_size))
+  filter(!is.na(allele_size) & !base::duplicated(dna_no))
 
 num_alleles <- nrow(flanking)
 
-large_alleles <- nrow(flanking %>% 
-                        filter(size_bp > 400))
+# 293bp non-repeat sequence
+# 150bp is the read length of whole genome sequencing
+# 293+150 = 443bp
 
-(large_alleles / num_alleles) * 100
-# 50% of alleles are greater than 400bp (~21 pentanucleotide repeats)
-# (400-293) / 5 = 21.4 repeats
+large_alleles <- nrow(flanking %>% 
+                        filter(size_bp > 443))
+
+large_allele_percentage <- (large_alleles / num_alleles) * 100
+# 64% of alleles are greater than 443bp (~30 pentanucleotide repeats)
 
 flanking_amplicon_abi_plot <- ggplot(flanking, aes(x = size_bp)) +
   geom_bar(stat = "bin", binwidth = 5) +
   labs(x = "Size (bp)", y = "Frequency (number of amplicons)",
-       title = "RFC1 flanking PCR amplicon sizes- ABI-3730") +
+       title = "RFC1 flanking PCR amplicon sizes: ABI-3730",
+       subtitle = paste0(large_allele_percentage, "% of sized alleles are too large to be sequenced by a single WGS read (150bp)"),
+       caption = "Data for randomly selected RFC1 referrals") +
   theme_bw() +
   theme(panel.grid = element_blank()) +
   xlim(250, 900) +
-  geom_vline(xintercept = 400, linetype = "dashed") +
-  annotate(geom = "text", label  = "65% of sized alleles are over 400bp (~21 repeats)",
-           x = 650, y = 30)
+  geom_vline(xintercept = 443, linetype = "dashed")
 
 ggsave(plot = flanking_amplicon_abi_plot, 
        filename = paste0(format(Sys.time(), "%Y%m%d_%H%M%S"),

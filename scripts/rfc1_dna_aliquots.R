@@ -2,6 +2,19 @@
 ## RFC1 DNA Aliquots for Research Testing
 ################################################################################
 
+# This script is used for generating a list of samples which require RFC1
+# testing on a research basis by the Cortese group at the Institute of 
+# Neurology.
+
+# This whole process is complicated by:
+# 2 labs having recently merged
+# 4 different information management systems (GOSH-Epic, UCLH-Epic, Winpath and PDMS)
+# Covid disruption
+# The researchers don't issue any reports
+# The researchers don't consistently use a patient-specific identifier
+# Mark Gaskin does not want to see patient-specific identifiers
+# Clinicians sent multiple samples for the same patient
+
 ##############################
 # Load libraries
 ##############################
@@ -19,8 +32,9 @@ setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational 
 # "CANVAS Referrals with Clinicians" Epic MyReport
 # Extracts all samples with an RFC1 test set added
 
-rfc1_epic_requests <- read_excel(path = "data/Checking_CANVAS_referrals_20220902.xlsx",
-                                 sheet = "epic_output") %>%
+most_recent_export <- "CANVAS_Referrals_with_Clinicians_20221205_0842.xlsx"
+
+rfc1_epic_requests <- read_excel(path = paste0("data/", most_recent_export)) %>%
   janitor::clean_names() %>%
   dplyr::rename(specimen_id = test_specimen_id)
 
@@ -43,6 +57,59 @@ prep_lab_samples <- read_excel("data/samples_requested_by_cortese_group.xlsx",
 # Samples aliquotted by Mark Gaskin
 ##############################
 
+# This script reads all the pull sheets sent by Mark Gaskin and compiles as a single
+# dataframe called "pullsheet_merge".
+source("scripts/dna_aliquotting_mark_gaskin.R")
+
+# Join dataframes together to give a summary table of all aliquotting since
+# April 2021
+all_aliquots <- rbind(pullsheet_merge %>%
+                        mutate(aliquotted_by = "Mark Gaskin") %>%
+                        dplyr::rename(specimen_id = original_sample_id) %>%
+                        select(specimen_id, amount_taken_ul, aliquotted_by, sheet),
+                      prep_lab_samples %>%
+                        dplyr::rename(amount_taken_ul = volume_ul) %>%
+                        mutate(sheet = "") %>% 
+                        select(specimen_id, amount_taken_ul, aliquotted_by, sheet))
+
+all_successful_aliquots <- all_aliquots %>% filter(amount_taken_ul > 0)
+
+##############################
+# 05/12/2022 - Which samples need to be aliquotted?
+##############################
+
+# Find samples on the Epic list which aren't on the list of successfully aliquotted samples.
+
+# Because a consistent patient-specific identifier isn't used and because the clinicians
+# keep sending multiple samples, I will rely on my previous checks on 02/09/22 to identify
+# samples which are duplicates for the same patient.
+
+previous_check <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
+                                     sheet = "epic_output_annotated") %>%
+  janitor::clean_names()
+
+samples_already_tested <- previous_check %>% filter(dna_required == "No")
+
+
+samples_to_aliquot <- rfc1_epic_requests %>%
+  filter(!specimen_id %in% all_successful_aliquots$specimen_id &
+           !specimen_id %in% samples_already_tested$test_specimen_id)
+  
+suspicious_samples <- samples_to_aliquot %>%
+  filter(collection_instant < "2022-09-03")
+
+
+to_check <- previous_check %>%
+  filter(test_specimen_id %in% suspicious_samples$specimen_id)
+
+
+# 22RG-333G0126
+# 22RG-332G0070 - sample from Dr Anna Latorre
+
+##############################
+# 02/09/2022 - Manually checking for missed samples
+##############################
+
 # This is Mark Gaskin's pull sheet for DNA samples that he aliquotted on 11/08/2022
 gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/DNA_aliquots_for_research/T1611-Pull sheet.xlsx",
                              sheet = "Pull sheet",
@@ -58,20 +125,6 @@ gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research
               select(specimen_id, pt_first_nm, patient_surname, dob, mrn),
             by = "specimen_id") %>%
   mutate(patient_name = paste0(pt_first_nm, " ", patient_surname))
-
-
-# Join dataframes together to give a summary table of all aliquotting since
-# April 2021
-all_aliquots <- rbind(gaskin_samples %>%
-                        select(specimen_id, patient_name, dob, mrn, 
-                               date_aliquotted, aliquotted_by, volume_ul),
-                      prep_lab_samples %>%
-                        select(specimen_id, patient_name, dob, mrn, 
-                               date_aliquotted, aliquotted_by, volume_ul))
-
-##############################
-# 02/09/2022 - Manually checking for missed samples
-##############################
 
 # I manually checked through all the RFC1 requests from Epic to find any that had not been aliquotted
 # either by the GOSH prep lab or by Mark Gaskin.
@@ -125,7 +178,20 @@ samples_for_aliqotting <- additional_samples %>%
   filter(specimen_id != "21RG-294G0054")
 
 write.csv(x = samples_for_aliqotting, 
-          file = paste0("outputs/rfc1_samples_for_aliqotting_patient_identifiers_removed_", format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
+          file = paste0("outputs/rfc1_samples_for_aliqotting_patient_identifiers_removed_", 
+                        format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
           row.names = FALSE)
 
 ##############################
+# The summary
+##############################
+
+# On Epic, there are:
+nrow(rfc1_epic_requests)
+# requests for RFC1 testing.
+
+# Since 2019, we have sent
+nrow(all_successful_aliquots)
+# aliquots of DNA to Andrea Cortese's group
+
+

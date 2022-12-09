@@ -90,7 +90,7 @@ read_pullsheet <- function(pullsheet) {
   output <- read_excel(paste0(pull_sheet_filepath, pullsheet),
                        skip = 2) %>%
     janitor::clean_names() %>%
-    mutate(sheet = pullsheet) %>%
+    mutate(sheet = substr(pullsheet, 1, 5)) %>%
     select(sheet, original_sample_id, amount_taken_ul) %>%
     filter(!is.na(original_sample_id))
   

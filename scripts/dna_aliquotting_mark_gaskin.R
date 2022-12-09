@@ -22,14 +22,13 @@ all_pullsheets <- list.files("W:/MolecularGenetics/Neurogenetics/Research/DNA_al
 
 pullsheet_merge <- data.frame()
 
-for (pullsheet in all_pullsheets) {
+for (i in all_pullsheets) {
   
-  tmp_sheet <- read_pullsheet(pullsheet)
+  tmp_sheet <- read_pullsheet(i)
   
   pullsheet_merge <- rbind(pullsheet_merge, tmp_sheet)
   
   rm(tmp_sheet)
-  return(pullsheet_merge)
   
 }
 

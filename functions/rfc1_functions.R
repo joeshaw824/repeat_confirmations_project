@@ -98,3 +98,17 @@ read_pullsheet <- function(pullsheet) {
 }
 
 ##############################
+# Other functions
+##############################
+
+export_timestamp <- function(input) {
+  
+  write.csv(input, 
+            file = paste0("outputs/", 
+                          format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+                          "_",
+                          deparse(substitute(input)), ".csv"),
+            row.names = FALSE)
+}
+
+##############################

@@ -45,6 +45,68 @@ positive_diagnostic_results <- collated_diagnostic_results %>%
            !base::duplicated(dna_no))
 
 ##############################
+# AAGGG peak heights
+##############################
+
+rp3_peaks <- read_csv("data/RP3_files_highest_peak_calls.csv",
+                      skip = 12) %>%
+  janitor::clean_names() %>%
+  mutate(specimen_id = str_extract(sample, pattern = "..RG-...G...."),
+         worksheet = str_extract(sample, pattern = "22-...."),
+         worksheet_number = as.numeric(substr(worksheet, 4, 7)))
+  
+
+rp3_peaks_results <- rp3_peaks %>%
+  filter(!is.na(allele_number_1) & !is.na(specimen_id)) %>%
+  left_join(collated_diagnostic_results %>%
+              select(dna_no, worksheet, coded_result) %>%
+              dplyr::rename(specimen_id = dna_no),
+            by = c("specimen_id", "worksheet"))
+
+# Colour by coded result
+ggplot(rp3_peaks_results, aes(x = reorder(sample, desc(height_number_1)),
+             y = height_number_1, colour = coded_result)) +
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        panel.grid = element_blank()) +
+  labs(x = "", y = "Heighest peak (RFU)",
+       title = "Highest AAGGG peak heights in samples with expansions") +
+  ylim(0, 20000) +
+  geom_hline(yintercept = 1000, linetype ="dashed") +
+  # This is the sample with an unusual repeat motif on the second allele
+  geom_text(aes(label=ifelse(specimen_id == "20RG-323G0124", 
+                             "20RG-323G0124",'')),
+            hjust=2,vjust=0, size=3, colour = "black")
+  
+# Colour by worksheet
+ggplot(rp3_peaks %>%
+         filter(!is.na(allele_number_1)), aes(x = worksheet,
+                              y = height_number_1, colour = worksheet)) +
+  geom_jitter(size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        panel.grid = element_blank()) +
+  labs(x = "", y = "Heighest peak (RFU)",
+       title = "Fluorescence values on RFC1 worksheets are increasing over time",
+       caption = "Data for AAGGG highest peak in samples with AAGGG expansions") +
+  ylim(0, 20000)
+
+pos_control_wells <- grep("108808", rp3_peaks$sample, value = TRUE)
+
+rp3_peaks %>%
+  filter(sample %in% pos_control_wells & worksheet != "22-2268") %>%
+  ggplot(aes(x = reorder(sample, worksheet_number), y = height_number_1,
+             colour = worksheet)) +
+  geom_point(size = 3) +
+  ylim(0, 9000) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  labs(x = "", y = "Heighest peak (RFU)",
+       title = "Same sample dilution tested on 3 different worksheets")
+
+
+##############################
 # For update meeting: total tested and positives
 ##############################
 
@@ -108,9 +170,8 @@ positives <- c("biallelic RFC1 expansion", "likely biallelic RFC1 expansion",
 
 positive_research_results <- updated_research_results %>%
   filter(interpretation %in% positives) %>%
-  select(full_name, interpretation, consultant)
-
-length(unique(positive_research_results$full_name))
+  select(full_name, interpretation, consultant) %>%
+  filter(!base::duplicated(full_name))
 
 # Read in Epic information for DNA locations
 rfc1_epic_export <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
@@ -123,28 +184,33 @@ winpath_rfc1_referrals <- read_csv("outputs/winpath_rfc1_referrals.csv") %>%
   janitor::clean_names() %>%
   mutate(full_name = paste0(forename, " ", surname))
 
-# Check which samples have already been confirmed
-to_manally_check <- split_dna_location(positive_research_results %>%
+# Research positives compared to diagnostic testing
+research_vs_diagnostic <- positive_research_results %>%
   # Add on DNA locations
   left_join(rfc1_epic_export %>%
+              filter(!base::duplicated(full_name)) %>%
               select(full_name, storage_location, 
                      test_specimen_id, dob), by = "full_name") %>%
-  left_join(collated_diagnostic_results, by = "full_name")) %>%
-  arrange(tray) %>%
-  filter(!base::duplicated(full_name))%>%
-  filter(is.na(coded_result)) %>%
+  left_join(collated_diagnostic_results %>%
+              filter(!base::duplicated(full_name)), by = "full_name") %>%
   # Add Winpath DNA numbers
   left_join(winpath_rfc1_referrals %>%
               select(dna_number, full_name), by = "full_name") %>%
-  mutate(query_already_tested = "",
-         worksheet_if_tested = "",
-         dna_volume = "",
-         query_other_sample_available = "",
-         other_sample_id = "") %>%
-  select(full_name, dob, test_specimen_id, dna_number, tray, ycoord, xcoord, query_already_tested,
-         worksheet_if_tested, dna_volume, query_other_sample_available, other_sample_id)
+  select(full_name, test_specimen_id, storage_location, interpretation, coded_result) %>%
+  arrange(coded_result)
 
-write.csv(to_manally_check, "outputs/manually_checking_dnas.csv", row.names = FALSE)
+write.csv(research_vs_diagnostic, "outputs/research_vs_diagnostic.csv",
+          row.names = FALSE)
+
+
+research_vs_diagnostic %>%
+  group_by(coded_result) %>%
+  summarise(total = n())
+
+# 29 still to be tested
+# 
+
+
 
 ##############################
 # Sequencing normal controls

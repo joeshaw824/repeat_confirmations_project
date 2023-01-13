@@ -34,8 +34,10 @@ ws_22_3206 <- read_rfc1_ws("22-3206")
 
 ws_22_3382 <- read_rfc1_ws("22-3382")
 
+ws_22_4370 <- read_rfc1_ws("22-4370")
+
 collated_diagnostic_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543, 
-                          ws_22_2649, ws_22_3206, ws_22_3382) %>%
+                          ws_22_2649, ws_22_3206, ws_22_3382, ws_22_4370) %>%
   mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " ")) %>%
   # Gets rid of empty lines, but not samples with "NA" as report_type
   filter(!is.na(report_type))
@@ -43,6 +45,26 @@ collated_diagnostic_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543,
 positive_diagnostic_results <- collated_diagnostic_results %>%
   filter(coded_result %in% c("AAGGG expansion presumed homozygous", "Other")  &
            !base::duplicated(dna_no))
+
+## Total tested
+
+water_controls <- unique(grep("Water", collated_diagnostic_results$dna_no, ignore.case = TRUE,
+                       value = TRUE))
+
+results_for_summary <- collated_diagnostic_results %>%
+  filter(!dna_no %in% water_controls) %>%
+  mutate(repeat_sample = ifelse(base::duplicated(dna_no, fromLast = TRUE) |
+                                  base::duplicated(dna_no, fromLast = FALSE),
+                                "repeated",
+                                "not repeated")) %>%
+  filter(!(repeat_sample == "repeated" & coded_result %in% c("Fail", "Further analysis")))
+
+results_for_summary %>%
+  filter(!base::duplicated(dna_no)) %>%
+  group_by(coded_result) %>%
+  summarise(N = n()) %>%
+  mutate("%" = round((N/sum(N)*100))) %>%
+  arrange(desc(N))
 
 ##############################
 # AAGGG peak heights
@@ -122,6 +144,10 @@ cohort_table_1 <- collated_diagnostic_results %>%
   summarise(N = n()) %>%
   mutate("%" = round((N/sum(N)*100))) %>%
   arrange(desc(N))
+
+# 175 samples tested on 7 worksheets - 25 samples per worksheet
+
+84/8
 
 write.csv(cohort_table_1, "outputs/cohort_table_1.csv", row.names = FALSE)
 
@@ -208,9 +234,6 @@ research_vs_diagnostic %>%
   summarise(total = n())
 
 # 29 still to be tested
-# 
-
-
 
 ##############################
 # Sequencing normal controls
@@ -385,3 +408,30 @@ collated_results %>%
   select(dna_no, result)
 
 ##############################
+# Andrea's large spreadsheet
+
+large_spreadsheet <- read_excel("data/RFC1 summary_AC Dec2021.xlsx") %>%
+  janitor::clean_names()
+
+interpretation_terms <- c("likely biallelic RFC1 expansion", "confirmed", "likley biallelic RFC1 expansion",
+                          "confirmed 27/9/21", "confirmed, ad long read" )
+
+english_centres <- c("Sheffield", "NHNN", "Salford Royal Hosptial", "Royal Victoria Infirmary Newcastle",
+                     "South Tyneside Hospital", "Southmead Hospital Britstol", "James Cook University Hospital",
+                     "Nuffield Health Hereford Hospital", "Salford Royal Hospital",
+                     "Queen Elizabeth Hospital","Stepping Hill Hospital", "Norwich University Hospital",
+                     "York Hospital", "Wessex Clinical Genetics", "Royal Hallamshire Hospital", NA)
+
+test <- large_spreadsheet %>%
+  filter(interpretation %in% interpretation_terms & centre %in% english_centres & !is.na(forename)) %>%
+  mutate(full_name = paste(toupper(forename), toupper(surname), sep = " "))
+
+test2 <- test %>%
+  left_join(collated_diagnostic_results, by = "full_name") %>%
+  # Samples without a result and with a Winpath/Epic DNA number
+  filter(is.na(coded_result) & !is.na(internal_id)) %>%
+  select(forename, surname.x, internal_id, external_id, hospital_no, interpretation)
+
+# Do we have samples logged onto Epic already?
+write.csv(test2, "outputs/test2.csv",
+          row.names = FALSE)

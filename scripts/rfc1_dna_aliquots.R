@@ -37,7 +37,7 @@ source("functions/rfc1_functions.R")
 # "CANVAS Referrals with Clinicians" Epic MyReport
 # Extracts all samples with an RFC1 test set added
 
-most_recent_export <- "CANVAS_Referrals_with_Clinicians_20221213_0951.xlsx"
+most_recent_export <- "CANVAS_Referrals_with_Clinicians_20230109_1347.xlsx"
 
 rfc1_epic_requests <- read_excel(path = paste0("data/", most_recent_export)) %>%
   janitor::clean_names() %>%

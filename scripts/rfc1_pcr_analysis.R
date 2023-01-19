@@ -59,12 +59,14 @@ results_for_summary <- collated_diagnostic_results %>%
                                 "not repeated")) %>%
   filter(!(repeat_sample == "repeated" & coded_result %in% c("Fail", "Further analysis")))
 
-results_for_summary %>%
+summary_table <- results_for_summary %>%
   filter(!base::duplicated(dna_no)) %>%
   group_by(coded_result) %>%
   summarise(N = n()) %>%
   mutate("%" = round((N/sum(N)*100))) %>%
   arrange(desc(N))
+
+sum(summary_table$N) +25
 
 ##############################
 # AAGGG peak heights

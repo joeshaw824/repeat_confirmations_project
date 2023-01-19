@@ -1,5 +1,6 @@
 ################################################################################
-## NOP56 PCR Analysis
+## NOP56 PCR Validation
+## joseph.shaw3@nhs.net
 ################################################################################
 
 ##############################
@@ -23,13 +24,19 @@ read_nop56_allele_report <- function(report_file) {
     select(-c(`...1`)) %>%
     janitor::clean_names() %>%
     mutate(specimen_id = str_extract(sample, pattern = "..RG-...G...."),
+           control_id = str_extract(sample, pattern = "C275"),
            allele_1_repeat = parse_number(allele_number_1),
-           allele_2_repeat = parse_number(allele_number_2))
+           allele_2_repeat = parse_number(allele_number_2),
+           worksheet = str_extract(report_file, "2.-...."))
 }
 
 allele_report_22_4357 <- read_nop56_allele_report("Diseases_Genes22-4357_FL_PCR_1_MergeProj_AlleleReport.xlsx")
 
 allele_report_23_0086 <- read_nop56_allele_report("Diseases_Genes23-0086_FL1_MergeProj_AlleleReport.xlsx")
+
+allele_report_22_4159 <- read_nop56_allele_report("Diseases_Genes22-1459_FL1_MergeProj_AlleleReport.xlsx")
+
+allele_report_22_4170 <- read_nop56_allele_report("Diseases_Genes22-4170_FL1_MergeProj_AlleleReport.xlsx")
 
 sequenced_ids <- c("22RG-273G0151", "22RG-273G0153", "22RG-273G0145", "22RG-283G0052",
                    "22RG-304G0056", "22RG-304G0056", "21RG-203G0002", "C275")
@@ -152,5 +159,77 @@ ggsave("nop56_normal_alleles_plot.png",
        width = 15,
        height = 10,
        dpi = 600)
+
+##############################
+# Uncertainty of Measurement
+##############################
+
+combined_data <- rbind(allele_report_22_4170, allele_report_22_4357, 
+                       allele_report_22_4159,  allele_report_23_0086) %>%
+  filter((specimen_id %in% c("21RG-203G0002", "22RG-304G0056") | control_id == "C275") 
+         & marker %in% c("NOP56_FL_PCR1", "NOP56_flanking_PCR_2")) %>%
+  mutate(identifier = case_when(
+    is.na(specimen_id) ~control_id,
+    is.na(control_id) ~specimen_id)) %>%
+  select(sample, identifier, marker, worksheet, size_number_1, size_number_2) %>%
+  arrange(identifier, marker, worksheet)
+
+pcr_1_uom <- combined_data %>%
+  filter(marker == "NOP56_FL_PCR1" & !sample %in% c(
+    # Not 0.2uM primers
+    "02_FL_1_21RG-203G0002_0.4_22-4170_B01_013.fsa", 
+    "06_FL_1_21RG-203G0002_0.3_22-4170_F01_005.fsa",
+    "01_FL_1_22RG-304G0056_0.4_22-4170_A01_015.fsa",
+    "05_FL_1_22RG-304G0056_0.3_22-4170_E01_007.fsa",
+    "03_FL_1_C275_0.4_22-4170_C01_011.fsa",
+    "07_FL_1_C275_0.3_22-4170_G01_003.fsa",
+    # Not 50ng input
+    "02_FL1_PCR_21RG-203G0002_B01_22-4357_B01_013.fsa",
+    "05_FL1_PCR_C275_E01_22-4357_E01_007.fsa"))
+
+
+pcr_2_uom <- combined_data %>%
+  filter(marker == "NOP56_flanking_PCR_2" & !sample %in% 
+           c("04_22-4159_21RG-203G0002_FL2_D01_009.fsa",
+            "18_FL_2_21RG-203G0002_0.4_22-4170_B03_029.fsa",
+            "22_FL_2_21RG-203G0002_0.3_22-4170_F03_021.fsa",
+            "02_FL2_PCR_21RG-203G0002_B05_22-4357_B05_045.fsa",
+            "17_FL_2_22RG-304G0056_0.4_22-4170_A03_031.fsa",
+            "21_FL_2_22RG-304G0056_0.3_22-4170_E03_023.fsa",
+            "05_22-4159_C275_FL2_E01_007.fsa",
+            "19_FL_2_C275_0.4_22-4170_C03_027.fsa",
+            "23_FL_2_C275_0.3_22-4170_G03_019.fsa",
+            "05_FL2_PCR_C275_E05_22-4357_E05_039.fsa"))
+
+generate_uom_table <- function(input_table) {
+  
+  table_short <- input_table %>%
+    select(-c(sample, marker, size_number_2)) %>%
+    pivot_wider(id_cols = c(identifier),
+                names_from = worksheet, 
+                values_from = c(size_number_1)) %>%
+    mutate(allele = "Short") %>%
+    select(identifier, allele, `22-1459`, `22-4170`, `22-4357`, `23-0086`)
+  
+  table_long <- input_table %>%
+    select(-c(sample, marker, size_number_1)) %>%
+    pivot_wider(id_cols = c(identifier),
+                names_from = worksheet, 
+                values_from = c(size_number_2)) %>%
+    mutate(allele = "Long") %>%
+    select(identifier, allele, `22-1459`, `22-4170`, `22-4357`, `23-0086`)
+  
+  table_combined <- rbind(table_short, table_long) %>%
+    arrange(identifier, desc(allele))
+  
+  return(table_combined)
+  
+}
+
+pcr1_table <- generate_uom_table(pcr_1_uom)
+pcr2_table <- generate_uom_table(pcr_2_uom)
+
+write.csv(pcr1_table, "outputs/pcr1_table.csv", row.names = FALSE)
+write.csv(pcr2_table, "outputs/pcr2_table.csv", row.names = FALSE)
 
 ##############################

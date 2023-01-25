@@ -36,8 +36,11 @@ ws_22_3382 <- read_rfc1_ws("22-3382")
 
 ws_22_4370 <- read_rfc1_ws("22-4370")
 
+ws_23_0124 <- read_rfc1_ws("23-0124")
+
 collated_diagnostic_results <- rbind(ws_22_2268, ws_22_2325, ws_22_2543, 
-                          ws_22_2649, ws_22_3206, ws_22_3382, ws_22_4370) %>%
+                          ws_22_2649, ws_22_3206, ws_22_3382, ws_22_4370,
+                          ws_23_0124) %>%
   mutate(full_name = paste(toupper(first_name), toupper(surname), sep = " ")) %>%
   # Gets rid of empty lines, but not samples with "NA" as report_type
   filter(!is.na(report_type))
@@ -66,7 +69,7 @@ summary_table <- results_for_summary %>%
   mutate("%" = round((N/sum(N)*100))) %>%
   arrange(desc(N))
 
-sum(summary_table$N) +25
+sum(summary_table$N)
 
 ##############################
 # AAGGG peak heights

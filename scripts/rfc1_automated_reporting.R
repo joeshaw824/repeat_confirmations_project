@@ -77,7 +77,7 @@ generate_report <- function(name_input) {
 
   # Automation Code
   rmarkdown::render(
-    input         = "scripts/rfc1_report_template.Rmd",
+    input         = "resources/rfc1_report_template.Rmd",
     output_file   = file_name,
     output_dir    = "automated_reports/",
     output_format = "word_document",

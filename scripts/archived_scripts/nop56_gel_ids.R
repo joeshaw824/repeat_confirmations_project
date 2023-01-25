@@ -1,5 +1,5 @@
 ################################################################################
-## SCA36 Samples for WGS
+## NOP56 Samples for WGS
 ################################################################################
 
 # Script for adding GEL identifiers to list of samples for Dalia Kasperaviciute

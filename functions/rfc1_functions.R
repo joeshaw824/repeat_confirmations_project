@@ -7,6 +7,14 @@
 ##############################
 
 # Useful function for splitting DNA storage location string used in Epic
+
+# Regex notes:
+# \\s = space
+# \\d = digits
+# \\d{3} = 3 digits
+# \\d{1,2} = at least 1 digit and at most 2 digits
+# () = grouping, i.e. select this group
+
 split_dna_location <- function(input_df) {
     
   stopifnot("storage_location" %in% colnames(input_df))
@@ -53,6 +61,54 @@ read_rfc1_ws <- function(worksheet_number) {
     mutate(worksheet = worksheet_number) %>%
     select(worksheet, sample, dna_no, first_name, surname, sample_file, marker, allele_1, size_1, height_1, 
            allele_2, size_2, height_2, result, report_type, coded_result)
+}
+
+
+get_ws_sample_info <- function(worksheet_number) {
+  
+  output <- readxl::read_excel(paste0("W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 worksheets/", 
+                          worksheet_number, "/", worksheet_number, ".xlsx"),
+                   sheet = "data_sheet",
+                   skip = 2,
+                   n_max = 33)%>%
+  janitor::clean_names() %>%
+  select(episode, first_name, surname, location, dna_ng_ul) %>%
+  filter(!episode %in% c("Water1", "Water2", "Water3", "Water4"))
+
+  return(output)
+  
+}
+
+##############################
+# Pullsheet functions
+##############################
+
+read_pullsheet <- function(pullsheet) {
+  
+  pull_sheet_filepath <- "W:/MolecularGenetics/Neurogenetics/Research/DNA_aliquots_for_research/Pull sheets/"
+  
+  output <- read_excel(paste0(pull_sheet_filepath, pullsheet),
+                       skip = 2) %>%
+    janitor::clean_names() %>%
+    mutate(sheet = substr(pullsheet, 1, 5)) %>%
+    select(sheet, original_sample_id, amount_taken_ul) %>%
+    filter(!is.na(original_sample_id))
+  
+  return(output)
+}
+
+##############################
+# Other functions
+##############################
+
+export_timestamp <- function(input) {
+  
+  write.csv(input, 
+            file = paste0("outputs/", 
+                          format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+                          "_",
+                          deparse(substitute(input)), ".csv"),
+            row.names = FALSE)
 }
 
 ##############################

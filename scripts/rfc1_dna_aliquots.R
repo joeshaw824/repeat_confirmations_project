@@ -2,15 +2,33 @@
 ## RFC1 DNA Aliquots for Research Testing
 ################################################################################
 
+# This script is used for generating a list of samples which require RFC1
+# testing on a research basis by the Cortese group at the Institute of 
+# Neurology.
+
+# This whole process is complicated by:
+# 2 labs having recently merged
+# 4 different information management systems (GOSH-Epic, UCLH-Epic, Winpath and PDMS)
+# Covid disruption
+# The researchers don't issue any reports
+# The researchers don't consistently use a patient-specific identifier
+# Mark Gaskin does not want to see patient-specific identifiers
+# Clinicians sent multiple samples for the same patient
+
 ##############################
 # Load libraries
 ##############################
+
+# Clear environment
+rm(list=ls())
 
 library(tidyverse)
 library(readxl)
 library(janitor)
 
 setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/RFC1 R code/RFC1_analysis")
+
+source("functions/rfc1_functions.R")
 
 ##############################
 # Which samples had RFC1 testing requested?
@@ -19,13 +37,14 @@ setwd(dir = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational 
 # "CANVAS Referrals with Clinicians" Epic MyReport
 # Extracts all samples with an RFC1 test set added
 
-rfc1_epic_requests <- read_excel(path = "data/Checking_CANVAS_referrals_20220902.xlsx",
-                                 sheet = "epic_output") %>%
+most_recent_export <- "CANVAS_Referrals_with_Clinicians_20230109_1347.xlsx"
+
+rfc1_epic_requests <- read_excel(path = paste0("data/", most_recent_export)) %>%
   janitor::clean_names() %>%
   dplyr::rename(specimen_id = test_specimen_id)
 
 ##############################
-# Which samples have had DNA sent to the Cortese group?
+# Samples sent to the Cortese group by the GOSH prep lab
 ##############################
 
 # This is an Excel that I manually typed out from the paper forms in the prep lab research
@@ -38,6 +57,95 @@ prep_lab_samples <- read_excel("data/samples_requested_by_cortese_group.xlsx",
   left_join(rfc1_epic_requests %>%
               select(specimen_id, mrn),
             by = "specimen_id")
+
+##############################
+# Samples aliquotted by Mark Gaskin
+##############################
+
+# This script reads all the pull sheets sent by Mark Gaskin and compiles as a single
+# dataframe called "pullsheet_merge".
+source("scripts/dna_aliquotting_mark_gaskin.R")
+
+# Join dataframes together to give a summary table of all aliquotting since
+# April 2021
+all_aliquots <- rbind(pullsheet_merge %>%
+                        mutate(aliquotted_by = "Mark Gaskin") %>%
+                        dplyr::rename(specimen_id = original_sample_id) %>%
+                        select(specimen_id, amount_taken_ul, aliquotted_by, sheet),
+                      prep_lab_samples %>%
+                        dplyr::rename(amount_taken_ul = volume_ul) %>%
+                        mutate(sheet = "") %>% 
+                        select(specimen_id, amount_taken_ul, aliquotted_by, sheet))
+
+all_successful_aliquots <- all_aliquots %>% filter(amount_taken_ul > 0)
+
+##############################
+# 13/12/2022 - Which samples need to be aliquotted?
+##############################
+
+# Find samples on the Epic list which aren't on the list of successfully aliquotted samples.
+
+# Because a consistent patient-specific identifier isn't used and because the clinicians
+# keep sending multiple samples, I will rely on my previous checks on 02/09/22 to identify
+# samples which are duplicates for the same patient.
+
+previous_check <- read_excel("data/Checking_CANVAS_referrals_20220902.xlsx",
+                                     sheet = "epic_output_annotated") %>%
+  janitor::clean_names()
+
+samples_already_tested <- previous_check %>% filter(dna_required == "No")
+
+# Samples to exclude
+samples_to_exclude <- c(
+  # A different sample for this patient was already sent: 21RG-294G0054
+  "21RG-294G0055", "21RG-294G0054",
+  # A different sample for this patient was already sent: 21RG-304G0081
+  "21RG-070G0100")
+
+rfc1_samples_auto_annotated <- rfc1_epic_requests %>%
+  mutate(dna_required = case_when(
+    specimen_id %in% all_successful_aliquots$specimen_id ~"No", 
+    specimen_id %in% samples_already_tested$test_specimen_id ~"No",
+    specimen_id %in% samples_to_exclude ~"No",
+    TRUE ~"Yes"),
+    
+    auto_comment = case_when(
+      specimen_id %in% all_successful_aliquots$specimen_id ~"Specimen number previously aliquotted",
+      specimen_id %in% samples_already_tested$test_specimen_id ~"Patient previously tested",
+      TRUE ~""))
+
+export_timestamp(rfc1_samples_auto_annotated)
+
+rfc1_samples_auto_annotated_no_patient_identifiers <- split_dna_location(rfc1_samples_auto_annotated %>%
+  filter(dna_required == "Yes")) %>%
+  select(specimen_id, final_dna_conc_ng_ml, dna_required, 
+         storage_location, tray, ycoord, xcoord)
+
+export_timestamp(rfc1_samples_auto_annotated_no_patient_identifiers)
+
+##############################
+# How many samples are from the same patient?
+##############################
+
+duplicated_requests <- rfc1_epic_requests %>%
+  filter(duplicated(nhs_number, fromLast = FALSE) |
+           duplicated(nhs_number, fromLast = TRUE)) %>%
+  arrange(mrn) %>%
+  select(specimen_id, pt_first_nm, patient_surname, dob, nhs_number, collection_instant) %>%
+  filter(!is.na(nhs_number))
+
+# Number of patients with duplicated samples
+patients_duplicated <- length(unique(duplicated_requests$nhs_number))
+
+# Number of samples
+samples_duplicated <- nrow(duplicated_requests)
+
+# Unnecessary samples
+samples_duplicated - patients_duplciated
+
+##############################
+# 02/09/2022 - Manually checking for missed samples
+##############################
 
 # This is Mark Gaskin's pull sheet for DNA samples that he aliquotted on 11/08/2022
 gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research/Joe Shaw Translational Post 2022/DNA_aliquots_for_research/T1611-Pull sheet.xlsx",
@@ -55,37 +163,10 @@ gaskin_samples <- read_excel(path = "W:/MolecularGenetics/Neurogenetics/Research
             by = "specimen_id") %>%
   mutate(patient_name = paste0(pt_first_nm, " ", patient_surname))
 
-
-# Join dataframes together to give a summary table of all aliquotting since
-# April 2021
-all_aliquots <- rbind(gaskin_samples %>%
-                        select(specimen_id, patient_name, dob, mrn, 
-                               date_aliquotted, aliquotted_by, volume_ul),
-                      prep_lab_samples %>%
-                        select(specimen_id, patient_name, dob, mrn, 
-                               date_aliquotted, aliquotted_by, volume_ul))
-
-##############################
-# 02/09/2022 - Manually checking for missed samples
-##############################
-
 # I manually checked through all the RFC1 requests from Epic to find any that had not been aliquotted
 # either by the GOSH prep lab or by Mark Gaskin.
 # I chose this method because there can be multiple episode numbers for the same patient, only one
 # of which may have the RFC1 test set added.
-
-##############################
-# How many samples are from the same patient?
-##############################
-
-duplicated_requests <- rfc1_epic_requests %>%
-  filter(duplicated(mrn, fromLast = FALSE) |
-           duplicated(mrn, fromLast = TRUE)) %>%
-  arrange(mrn) %>%
-  select(specimen_id, pt_first_nm, patient_surname, dob, mrn, collection_instant)
-
-# Number of patients with duplicated samples
-length(unique(duplicated_requests$mrn))
 
 ##############################
 # Which samples need to be aliquotted?
@@ -121,7 +202,20 @@ samples_for_aliqotting <- additional_samples %>%
   filter(specimen_id != "21RG-294G0054")
 
 write.csv(x = samples_for_aliqotting, 
-          file = paste0("outputs/rfc1_samples_for_aliqotting_patient_identifiers_removed_", format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
+          file = paste0("outputs/rfc1_samples_for_aliqotting_patient_identifiers_removed_", 
+                        format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), ".csv"),
           row.names = FALSE)
+
+##############################
+# The summary
+##############################
+
+# On Epic, there are:
+nrow(rfc1_epic_requests)
+# requests for RFC1 testing.
+
+# Since 2019, we have sent
+nrow(all_successful_aliquots)
+# aliquots of DNA to Andrea Cortese's group
 
 ##############################

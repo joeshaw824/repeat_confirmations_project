@@ -1,0 +1,105 @@
+---
+title: "Hardy-Weinberg for RFC1"
+author: "Joe Shaw"
+format: pdf
+---
+
+```{r}
+#| label: tidyverse
+#| include: FALSE
+
+library(tidyverse)
+
+```
+
+Response to reviewer comments for manuscript "Repeat expansions in RFC1 gene in Refractory Chronic Cough".
+
+The following genotype frequencies were detected by PCR in the chronic cough patient cohort:
+
+```{r}
+#| label: genotype-frequencies
+#| include: TRUE
+
+biallelic_frequency <- 4/51
+
+monoallelic_frequency <- 5/51
+
+normal_frequency <- 42/51
+
+```
+
+RFC1 is an autosomal gene on chromosome 4, so the genotype frequencies allow us to determine the allele frequencies of each allele, assuming 2 copies of chromosome 4 per patient.
+
+p is the frequency of the normal allele.
+
+q is the frequency of the AAGGG expansion allele.
+
+```{r}
+#| label: allele-frequencies
+#| include: TRUE
+
+q <- ((4*2) + 5) / (51*2)
+
+p <- ((42*2) + 5) / (51*2)
+
+```
+The Hardy Weinberg equilibrium calculation is:
+
+p^2 + q^2 + 2pq  = 1
+
+This allows us to calculate the theoretical genotype frequencies in the cough cohort, assuming the Hardy Weinberg equilibrium applies.
+
+```{r}
+#| label: predicted-genotype-frequencies
+#| include: FALSE
+
+p2 <- p^2
+
+q2 <- q^2
+
+two2pq <- 2*p*q
+
+```
+
+Now we can compare our theoretical genotype frequencies with the actual genotype frequencies.
+
+```{r}
+#| label: compare-frequencies
+#| echo: FALSE
+
+summary_table <- data.frame(
+  "genotype" = c("Biallelic AAGGG", 
+                 "Monoallelic AAGGG", 
+                 "Biallelic normal",
+                 "Total"),
+  "cough_study_frequency" = c(round(biallelic_frequency, 2),
+                              round(monoallelic_frequency, 2),
+                              round(normal_frequency, 2),
+                              round(biallelic_frequency + monoallelic_frequency +
+                                      normal_frequency)),
+  "hw_frequency" = c(round(q2, 2), 
+                                 round(two2pq, 2),
+                                 round(p2, 2),
+                                 round(p2 + q2 + two2pq, 2))
+) |> 
+  mutate(difference = cough_study_frequency - hw_frequency)
+
+knitr::kable(summary_table)
+
+```
+
+There is a clear difference between the predicted genotype frequencies and the actual genotype frequencies. This is because the Hardy Weinberg equation makes the following assumptions:
+
+1. No selection pressure on a particular allele.
+
+2. Mating is random.
+
+3. The population is closed.
+
+4. The population is large.
+
+The patients were selected based on a phenotype, so the population was artificially enriched for a particular allele and assumption 1 does not apply.
+
+Also, the cough study patient cohort is small (51 patients), so assumption 4 does not apply.
+
+Consequently, Hardy Weinberg equilibrium would not be expected to apply to this cohort.
